@@ -24,10 +24,17 @@ ext {
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
+	//implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
 	implementation 'io.grpc:grpc-services'
+	implementation 'io.grpc:grpc-stub'
+	implementation 'io.grpc:grpc-protobuf'
 	implementation 'org.springframework.grpc:spring-grpc-spring-boot-starter'
-	testImplementation 'org.springframework.boot:spring-boot-starter-data-r2dbc-test'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	//testImplementation 'org.springframework.boot:spring-boot-starter-data-r2dbc-test'
 	testImplementation 'org.springframework.grpc:spring-grpc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
