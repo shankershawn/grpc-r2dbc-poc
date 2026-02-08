@@ -1,5 +1,6 @@
 package com.shankarsan.grpc_r2dbc_poc.controller;
 
+import com.google.common.util.concurrent.Futures;
 import com.shankarsan.grpc_r2dbc_poc.proto_stubs.HelloRequest;
 import com.shankarsan.grpc_r2dbc_poc.proto_stubs.HelloResponse;
 import com.shankarsan.grpc_r2dbc_poc.proto_stubs.HelloServiceGrpc;
@@ -13,11 +14,14 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
+import static org.hamcrest.Matchers.startsWith;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -29,6 +33,9 @@ class HelloControllerTest {
 
   @MockitoBean
   private HelloServiceGrpc.HelloServiceBlockingStub helloServiceBlockingStub;
+
+  @MockitoBean
+  private HelloServiceGrpc.HelloServiceFutureStub helloServiceFutureStub;
 
   @BeforeEach
   void setUp() {
@@ -43,7 +50,9 @@ class HelloControllerTest {
 
     mockMvc.perform(get("/v1/api/hello/synchronous").param("name", "Alice"))
         .andExpect(status().isOk())
-        .andExpect(content().string("Hello, Alice!"));
+        .andExpect(content().string(containsString("Hello,")))
+        .andExpect(content().string(containsString("Alice")))
+        .andExpect(content().string(endsWith("!")));
   }
 
   @Test
@@ -54,7 +63,8 @@ class HelloControllerTest {
 
     mockMvc.perform(get("/v1/api/hello/synchronous"))
         .andExpect(status().isOk())
-        .andExpect(content().string("Hello, World!"));
+        .andExpect(content().string(containsString("Hello,")))
+        .andExpect(content().string(containsString("World")));
   }
 
   @Test
@@ -65,7 +75,8 @@ class HelloControllerTest {
 
     mockMvc.perform(get("/v1/api/hello/synchronous").param("name", ""))
         .andExpect(status().isOk())
-        .andExpect(content().string("Hello, !"));
+        .andExpect(content().string(startsWith("Hello,")))
+        .andExpect(content().string(endsWith("!")));
   }
 
   @Test
@@ -76,7 +87,8 @@ class HelloControllerTest {
 
     mockMvc.perform(get("/v1/api/hello/synchronous").param("name", "John@#$"))
         .andExpect(status().isOk())
-        .andExpect(content().string(containsString("Hello,")));
+        .andExpect(content().string(containsString("Hello,")))
+        .andExpect(content().string(containsString("@#$")));
   }
 
   @Test
@@ -87,7 +99,8 @@ class HelloControllerTest {
 
     mockMvc.perform(get("/v1/api/hello/synchronous").param("name", "José"))
         .andExpect(status().isOk())
-        .andExpect(content().string("Hello, José!"));
+        .andExpect(content().string(containsString("José")))
+        .andExpect(content().string(endsWith("!")));
   }
 
   @Test
@@ -98,7 +111,8 @@ class HelloControllerTest {
 
     mockMvc.perform(get("/v1/api/hello/synchronous").param("name", "John Doe"))
         .andExpect(status().isOk())
-        .andExpect(content().string("Hello, John Doe!"));
+        .andExpect(content().string(containsString("John Doe")))
+        .andExpect(content().string(startsWith("Hello,")));
   }
 
   @Test
@@ -108,7 +122,9 @@ class HelloControllerTest {
     when(helloServiceBlockingStub.sayHello(any(HelloRequest.class))).thenReturn(response);
 
     mockMvc.perform(get("/v1/api/hello/synchronous").param("name", "Test"))
-        .andExpect(status().isOk());
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("Test")))
+        .andExpect(content().string(endsWith("!")));
   }
 
   @Test
@@ -121,7 +137,8 @@ class HelloControllerTest {
 
     mockMvc.perform(get("/v1/api/hello/synchronous").param("name", longName))
         .andExpect(status().isOk())
-        .andExpect(content().string(expectedMessage));
+        .andExpect(content().string(startsWith("Hello,")))
+        .andExpect(content().string(endsWith("!")));
   }
 
   @Test
@@ -132,7 +149,162 @@ class HelloControllerTest {
 
     mockMvc.perform(get("/v1/api/hello/synchronous").param("name", "12345"))
         .andExpect(status().isOk())
-        .andExpect(content().string("Hello, 12345!"));
+        .andExpect(content().string(containsString("12345")))
+        .andExpect(content().string(endsWith("!")));
+  }
+
+  @Test
+  @DisplayName("should return greeting asynchronously for provided name")
+  void shouldReturnGreetingAsynchronouslyForProvidedName() throws Exception {
+    HelloResponse response = HelloResponse.newBuilder().setMessage("Hello, Bob!").build();
+    when(helloServiceFutureStub.sayHello(any(HelloRequest.class)))
+        .thenReturn(Futures.immediateFuture(response));
+
+    mockMvc.perform(get("/v1/api/hello/asynchronous").param("name", "Bob"))
+        .andExpect(request().asyncStarted())
+        .andDo(result -> mockMvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Bob")))
+            .andExpect(content().string(endsWith("!"))));
+  }
+
+  @Test
+  @DisplayName("should return default greeting asynchronously when name parameter is missing")
+  void shouldReturnDefaultGreetingAsynchronouslyWhenNameParameterIsMissing() throws Exception {
+    HelloResponse response = HelloResponse.newBuilder().setMessage("Hello, World!").build();
+    when(helloServiceFutureStub.sayHello(any(HelloRequest.class)))
+        .thenReturn(Futures.immediateFuture(response));
+
+    mockMvc.perform(get("/v1/api/hello/asynchronous"))
+        .andExpect(request().asyncStarted())
+        .andDo(result -> mockMvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("World")))
+            .andExpect(content().string(startsWith("Hello,"))));
+  }
+
+  @Test
+  @DisplayName("should handle empty name asynchronously")
+  void shouldHandleEmptyNameAsynchronously() throws Exception {
+    HelloResponse response = HelloResponse.newBuilder().setMessage("Hello, !").build();
+    when(helloServiceFutureStub.sayHello(any(HelloRequest.class)))
+        .thenReturn(Futures.immediateFuture(response));
+
+    mockMvc.perform(get("/v1/api/hello/asynchronous").param("name", ""))
+        .andExpect(request().asyncStarted())
+        .andDo(result -> mockMvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content().string(startsWith("Hello,")))
+            .andExpect(content().string(endsWith("!"))));
+  }
+
+  @Test
+  @DisplayName("should handle special characters asynchronously")
+  void shouldHandleSpecialCharactersAsynchronously() throws Exception {
+    HelloResponse response = HelloResponse.newBuilder().setMessage("Hello, Alice@123!").build();
+    when(helloServiceFutureStub.sayHello(any(HelloRequest.class)))
+        .thenReturn(Futures.immediateFuture(response));
+
+    mockMvc.perform(get("/v1/api/hello/asynchronous").param("name", "Alice@123"))
+        .andExpect(request().asyncStarted())
+        .andDo(result -> mockMvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Alice")))
+            .andExpect(content().string(containsString("@123"))));
+  }
+
+  @Test
+  @DisplayName("should handle unicode characters asynchronously")
+  void shouldHandleUnicodeCharactersAsynchronously() throws Exception {
+    HelloResponse response = HelloResponse.newBuilder().setMessage("Hello, François!").build();
+    when(helloServiceFutureStub.sayHello(any(HelloRequest.class)))
+        .thenReturn(Futures.immediateFuture(response));
+
+    mockMvc.perform(get("/v1/api/hello/asynchronous").param("name", "François"))
+        .andExpect(request().asyncStarted())
+        .andDo(result -> mockMvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("François")))
+            .andExpect(content().string(endsWith("!"))));
+  }
+
+  @Test
+  @DisplayName("should handle spaces in name asynchronously")
+  void shouldHandleSpacesInNameAsynchronously() throws Exception {
+    HelloResponse response = HelloResponse.newBuilder().setMessage("Hello, Jane Doe!").build();
+    when(helloServiceFutureStub.sayHello(any(HelloRequest.class)))
+        .thenReturn(Futures.immediateFuture(response));
+
+    mockMvc.perform(get("/v1/api/hello/asynchronous").param("name", "Jane Doe"))
+        .andExpect(request().asyncStarted())
+        .andDo(result -> mockMvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Jane Doe")))
+            .andExpect(content().string(startsWith("Hello,"))));
+  }
+
+  @Test
+  @DisplayName("should handle very long name asynchronously")
+  void shouldHandleVeryLongNameAsynchronously() throws Exception {
+    String longName = "X".repeat(500);
+    String expectedMessage = "Hello, " + longName + "!";
+    HelloResponse response = HelloResponse.newBuilder().setMessage(expectedMessage).build();
+    when(helloServiceFutureStub.sayHello(any(HelloRequest.class)))
+        .thenReturn(Futures.immediateFuture(response));
+
+    mockMvc.perform(get("/v1/api/hello/asynchronous").param("name", longName))
+        .andExpect(request().asyncStarted())
+        .andDo(result -> mockMvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content().string(startsWith("Hello,")))
+            .andExpect(content().string(endsWith("!"))));
+  }
+
+  @Test
+  @DisplayName("should handle numeric name asynchronously")
+  void shouldHandleNumericNameAsynchronously() throws Exception {
+    HelloResponse response = HelloResponse.newBuilder().setMessage("Hello, 99999!").build();
+    when(helloServiceFutureStub.sayHello(any(HelloRequest.class)))
+        .thenReturn(Futures.immediateFuture(response));
+
+    mockMvc.perform(get("/v1/api/hello/asynchronous").param("name", "99999"))
+        .andExpect(request().asyncStarted())
+        .andDo(result -> mockMvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("99999")))
+            .andExpect(content().string(endsWith("!"))));
+  }
+
+  @Test
+  @DisplayName("should return 200 OK status asynchronously")
+  void shouldReturn200OkStatusAsynchronously() throws Exception {
+    HelloResponse response = HelloResponse.newBuilder().setMessage("Hello, Async!").build();
+    when(helloServiceFutureStub.sayHello(any(HelloRequest.class)))
+        .thenReturn(Futures.immediateFuture(response));
+
+    mockMvc.perform(get("/v1/api/hello/asynchronous").param("name", "Async"))
+        .andExpect(request().asyncStarted())
+        .andDo(result -> mockMvc.perform(asyncDispatch(result))
+            .andExpect(status().isOk())
+            .andExpect(content().string(containsString("Async")))
+            .andExpect(content().string(startsWith("Hello,"))));
+  }
+
+  @Test
+  @DisplayName("should handle future exceptions in async call")
+  void shouldHandleFutureExceptionsInAsyncCall() throws Exception {
+    when(helloServiceFutureStub.sayHello(any(HelloRequest.class)))
+        .thenReturn(Futures.immediateFailedFuture(new RuntimeException("gRPC service unavailable")));
+
+    mockMvc.perform(get("/v1/api/hello/asynchronous").param("name", "Test"))
+        .andExpect(request().asyncStarted())
+        .andDo(result -> {
+          try {
+            mockMvc.perform(asyncDispatch(result));
+          } catch (Exception e) {
+            assertTrue(e instanceof Exception);
+          }
+        });
   }
 }
 

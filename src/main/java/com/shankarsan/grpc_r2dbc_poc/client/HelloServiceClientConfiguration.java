@@ -12,4 +12,9 @@ public class HelloServiceClientConfiguration {
   public HelloServiceGrpc.HelloServiceBlockingStub helloServiceBlockingStub(GrpcChannelFactory channelFactory) {
     return HelloServiceGrpc.newBlockingStub(channelFactory.createChannel("local"));
   }
+
+  @Bean
+  public HelloServiceGrpc.HelloServiceFutureStub helloServiceFutureStub(GrpcChannelFactory channelFactory) {
+    return HelloServiceGrpc.newFutureStub(channelFactory.createChannel("local"));
+  }
 }

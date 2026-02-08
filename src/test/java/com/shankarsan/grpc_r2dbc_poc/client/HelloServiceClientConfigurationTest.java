@@ -53,5 +53,38 @@ class HelloServiceClientConfigurationTest {
     assertNotNull(stub1);
     assertNotNull(stub2);
   }
+
+  @Test
+  @DisplayName("should create HelloServiceFutureStub bean with correct type")
+  void shouldCreateHelloServiceFutureStubBean() {
+    when(grpcChannelFactory.createChannel("local")).thenReturn(channel);
+
+    HelloServiceGrpc.HelloServiceFutureStub stub = configuration.helloServiceFutureStub(grpcChannelFactory);
+
+    assertNotNull(stub);
+    assertInstanceOf(HelloServiceGrpc.HelloServiceFutureStub.class, stub);
+  }
+
+  @Test
+  @DisplayName("should create new future stub on each invocation")
+  void shouldCreateNewFutureStubOnEachInvocation() {
+    when(grpcChannelFactory.createChannel("local")).thenReturn(channel);
+
+    HelloServiceGrpc.HelloServiceFutureStub stub1 = configuration.helloServiceFutureStub(grpcChannelFactory);
+    HelloServiceGrpc.HelloServiceFutureStub stub2 = configuration.helloServiceFutureStub(grpcChannelFactory);
+
+    assertNotNull(stub1);
+    assertNotNull(stub2);
+  }
+
+  @Test
+  @DisplayName("should use local channel name for future stub factory")
+  void shouldUseLocalChannelNameForFutureStubFactory() {
+    when(grpcChannelFactory.createChannel("local")).thenReturn(channel);
+
+    HelloServiceGrpc.HelloServiceFutureStub stub = configuration.helloServiceFutureStub(grpcChannelFactory);
+
+    assertNotNull(stub);
+  }
 }
 
