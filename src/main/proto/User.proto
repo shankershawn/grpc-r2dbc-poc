@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.shankarsan.grpc_r2dbc_poc.proto_stubs";
+option java_outer_classname = "UserProto";
+
+service UserService {
+  rpc createUser (UserRequest) returns (UserResponse);
+  rpc viewUser (UserRequest) returns (UserResponse);
+  rpc updateUser (UserRequest) returns (UserResponse);
+  rpc deleteUser (UserRequest) returns (UserResponse);
+}
+
+message UserRequest {
+  int64 userId = 1;
+  string userName = 2;
+  string userEmail = 3;
+}
+
+message UserResponse {
+  string message = 1;
+  int64 userId = 2;
+  string userName = 3;
+  string userEmail = 4;
+}
