@@ -6,7 +6,7 @@ option java_outer_classname = "UserProto";
 
 service UserService {
   rpc createUser (UserRequest) returns (UserResponse);
-  rpc viewUser (UserRequest) returns (UserResponse);
+  rpc viewUser (UserRequest) returns (stream UserResponse);
   rpc updateUser (UserRequest) returns (UserResponse);
   rpc deleteUser (UserRequest) returns (UserResponse);
 }

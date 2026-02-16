@@ -13,15 +13,13 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("UserServiceImpl Tests")
@@ -62,6 +60,29 @@ class UserServiceImplTest {
     assertEquals(1L, response.getUserId());
     assertEquals("Alice", response.getUserName());
     assertEquals("alice@example.com", response.getUserEmail());
+  }
+
+  @Test
+  @DisplayName("viewUser should stream all users when userId is -1")
+  void viewUserShouldStreamAllUsersWhenUserIdIsMinusOne() {
+    User user1 = User.builder()
+        .userId(1L)
+        .userName("Alice")
+        .userEmail("alice@example.com")
+        .build();
+    User user2 = User.builder()
+        .userId(2L)
+        .userName("Bob")
+        .userEmail("bob@example.com")
+        .build();
+    when(userRepository.findAll()).thenReturn(Flux.just(user1, user2));
+
+    service.viewUser(UserRequest.newBuilder().setUserId(-1L).build(), responseObserver);
+
+    InOrder inOrder = inOrder(responseObserver);
+    inOrder.verify(responseObserver, times(2)).onNext(any(UserResponse.class));
+    inOrder.verify(responseObserver).onCompleted();
+    inOrder.verifyNoMoreInteractions();
   }
 
   @Test

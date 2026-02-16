@@ -8,6 +8,7 @@ import com.shankarsan.grpc_r2dbc_poc.proto_stubs.UserServiceGrpc;
 import io.grpc.stub.StreamObserver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.grpc.server.service.GrpcService;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.Optional;
@@ -21,7 +22,11 @@ public class UserServiceImpl extends UserServiceGrpc.UserServiceImplBase {
   @Override
   public void viewUser(com.shankarsan.grpc_r2dbc_poc.proto_stubs.UserRequest request,
                        io.grpc.stub.StreamObserver<com.shankarsan.grpc_r2dbc_poc.proto_stubs.UserResponse> responseObserver) {
-    saveUser(userRepository.findById(request.getUserId()), responseObserver);
+    if (-1 == request.getUserId()) {
+      extractFluxToObserver(userRepository.findAll(), responseObserver);
+    } else {
+      extractMonoToObserver(userRepository.findById(request.getUserId()), responseObserver);
+    }
   }
 
   @Override
@@ -32,7 +37,7 @@ public class UserServiceImpl extends UserServiceGrpc.UserServiceImplBase {
         .userEmail(request.getUserEmail())
         .build();
 
-    saveUser(userRepository.save(user), responseObserver);
+    extractMonoToObserver(userRepository.save(user), responseObserver);
   }
 
   @Override
@@ -45,18 +50,30 @@ public class UserServiceImpl extends UserServiceGrpc.UserServiceImplBase {
         .userEmail(request.getUserEmail())
         .build();
 
-    saveUser(userRepository.save(user), responseObserver);
+    extractMonoToObserver(userRepository.save(user), responseObserver);
   }
 
-  private void saveUser(Mono<User> userMono, StreamObserver<UserResponse> responseObserver) {
+  private void extractMonoToObserver(Mono<User> userMono, StreamObserver<UserResponse> responseObserver) {
     userMono
+        .map(user -> UserResponse.newBuilder()
+            .setUserId(user.getUserId())
+            .setUserName(user.getUserName())
+            .setUserEmail(user.getUserEmail())
+            .build())
+        .doFinally(signalType -> responseObserver.onCompleted())
+        .subscribe(responseObserver::onNext);
+  }
+
+  private void extractFluxToObserver(Flux<User> userFlux, StreamObserver<UserResponse> responseObserver) {
+    userFlux
         .map(savedUser -> UserResponse.newBuilder()
             .setUserId(savedUser.getUserId())
             .setUserName(savedUser.getUserName())
             .setUserEmail(savedUser.getUserEmail())
             .build())
-        .doFinally(signalType -> responseObserver.onCompleted())
-        .subscribe(responseObserver::onNext);
+        .doOnNext(responseObserver::onNext)
+        .doOnComplete(responseObserver::onCompleted)
+        .subscribe();
   }
 
   @Override
